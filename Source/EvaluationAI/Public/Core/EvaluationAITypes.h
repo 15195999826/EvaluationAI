@@ -14,23 +14,18 @@ class UEvaluationAIDecisionComponent;
  * AI决策结果数据
  */
 USTRUCT()
-struct FEvaluationAIDecisionResult
+struct EVALUATIONAI_API FEvaluationAIDecisionResult
 {
     GENERATED_BODY()
 
     FEvaluationAIDecisionResult(){}
-
-    FEvaluationAIDecisionResult(const FGameplayTag InTag):DecisionAction(InTag)
-    {
-        
-    }
-
+    
     // 声明一个Invalid 的常量
     static const FEvaluationAIDecisionResult Invalid;
     
     // 决策结果行为
     UPROPERTY()
-    FGameplayTag DecisionAction;
+    FGameplayTag DecisionAction = FGameplayTag::EmptyTag;
 
     // 决策结果的具体数据， 项目本身自行定义Key Value, 决定各个值代表什么含义
     UPROPERTY()
@@ -50,6 +45,8 @@ struct FEvaluationAIDecisionResult
     // 得分
     UPROPERTY()
     float Score = 0.f;
+
+    FString ToString() const;
 };
 
 USTRUCT()

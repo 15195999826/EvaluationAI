@@ -6,6 +6,7 @@
 #include "Core/EvaluationAISettings.h"
 #include "Core/EvaluationAIStrategy.h"
 #include "Core/EvaluationAIStrategyFactory.h"
+#include "DefaultClass/DefaultAIEvaluationHelper.h"
 #include "DefaultClass/DefaultAIStrategyFactory.h"
 
 void UEvaluationAIDecisionSystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -15,7 +16,12 @@ void UEvaluationAIDecisionSystem::Initialize(FSubsystemCollectionBase& Collectio
     
     // 创建评估助手
     auto HelperClass = Settings->DefaultEvaluationHelperClass;
-    check(HelperClass);
+    
+    if (HelperClass == nullptr)
+    {
+        HelperClass = UDefaultAIEvaluationHelper::StaticClass();
+    }
+    
     EvaluationHelper = NewObject<UEvaluationAIEvaluationHelper>(this, HelperClass);
     EvaluationHelper->InitHelper();
     // 创建策略工厂
@@ -120,14 +126,13 @@ void UEvaluationAIDecisionSystem::SyncAIThink()
     }
 
     // 再进行个人决策
-    for (auto& AI : RegisteredAIs)
+    for (auto AI : RegisteredAIs)
     {
         // Todo: 获取自己在队伍决策中的结果， 然后根据自身情况决定使用队伍决策还是个人决策 
         // auto TeamID = AI->GetEvaluationTeamID();
    
         // 进行个人决策
-        const FEvaluationAIDecisionResult& Decision = MakeIndividualDecision(AI, WorldContext);
-
+        FEvaluationAIDecisionResult Decision = MakeIndividualDecision(AI, WorldContext);
         // 保存个人最终决策到组件中， 留给项目本身决定如何执行
         AI->SetDecision(Decision);
     }
@@ -144,14 +149,14 @@ const FEvaluationAITeamDecisionResult& UEvaluationAIDecisionSystem::MakeTeamDeci
     return FEvaluationAITeamDecisionResult::Invalid;
 }
 
-const FEvaluationAIDecisionResult& UEvaluationAIDecisionSystem::MakeIndividualDecision(
+FEvaluationAIDecisionResult UEvaluationAIDecisionSystem::MakeIndividualDecision(
     UEvaluationAIDecisionComponent* Component, const UEvaluationWorldContext* InWorldContext)
 {
     auto StrategyType = Component->GetAIConfig().StrategyType;
     check(DecisionStrategyMap.Contains(StrategyType));
     // 1. 生成行动选项
     TArray<FEvaluationAIDecisionResult> Options = DecisionStrategyMap[StrategyType]->GenerateOptionsForAI(Component, InWorldContext);
-    
+    // 2. 评估所有选项
     // 如果没有选项，返回空决策
     if (Options.Num() == 0)
     {
@@ -162,8 +167,7 @@ const FEvaluationAIDecisionResult& UEvaluationAIDecisionSystem::MakeIndividualDe
     EvaluationHelper->EvaluateAllActions(Component, InWorldContext, Options);
     
     // 3. 选择最佳选项
-    FEvaluationAIDecisionResult BestAction = EvaluationHelper->SelectBestAction(Component, InWorldContext, Options);
-    
+    const auto& BestAction = EvaluationHelper->SelectBestAction(Component, InWorldContext, Options);
     return BestAction;
 }
 

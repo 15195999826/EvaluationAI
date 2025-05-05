@@ -89,6 +89,8 @@ public:
     // 从团队中注销
     void UnregisterAI(UEvaluationAIDecisionComponent* Component);
 
+    const TArray<TObjectPtr<UEvaluationAIDecisionComponent>>& GetRegisteredAIs() const { return RegisteredAIs; }
+
     const TMap<int32, TObjectPtr<UEvaluationTeamContext>>& GetTeamContexts();
 
     const UEvaluationAIEvaluationHelper* GetEvaluationHelper() const { return EvaluationHelper; }
@@ -102,7 +104,7 @@ public:
     const FEvaluationAITeamDecisionResult& MakeTeamDecision(int32 InTeamID, const UEvaluationWorldContext* InWorldContext);
 
     // 个体级决策
-    const FEvaluationAIDecisionResult& MakeIndividualDecision(UEvaluationAIDecisionComponent* Component, const UEvaluationWorldContext* InWorldContext);
+    FEvaluationAIDecisionResult MakeIndividualDecision(UEvaluationAIDecisionComponent* Component, const UEvaluationWorldContext* InWorldContext);
 
     
 protected:
