@@ -1,5 +1,7 @@
 ﻿#include "Core/EvaluationAITypes.h"
 
+#include "Core/EvaluationAIStrategy.h"
+
 // 定义FEvaluationAIDecisionResult 的 Invalid常量
 const FEvaluationAIDecisionResult FEvaluationAIDecisionResult::Invalid{};
 
@@ -54,4 +56,55 @@ FString FEvaluationAIDecisionResult::ToString() const
 	}
     
 	return Builder.ToString();
+}
+
+void FEvaluationAIStrategyConfig::OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName)
+{
+#if WITH_EDITOR
+	// 检查特定属性是否变化
+	if (OldValue != StrategyClass)
+	{
+		UE_LOG(LogTemp, Log, TEXT("行 %s 中的 StrategyClass 从 %s 变为 %s"), 
+			*InRowName.ToString(), OldValue==nullptr? TEXT("nullptr") : *OldValue->GetName(), StrategyClass ? *StrategyClass->GetName() : TEXT("nullptr"));
+            
+		// 更新旧值
+		OldValue = StrategyClass;
+	}
+	
+	
+	if (!StrategyClass)
+	{
+		FinalAlgorithmMap.Empty();
+		return;
+	}
+	
+	// 获取策略类的默认对象
+	UEvaluationAIStrategy* DefaultStrategy = Cast<UEvaluationAIStrategy>(StrategyClass->GetDefaultObject());
+	auto DesiredFinalAlgorithmMap = DefaultStrategy->GetFinalAlgorithmNames();
+	if (DesiredFinalAlgorithmMap.Num() == 0)
+	{
+		FinalAlgorithmMap.Empty();
+		return;
+	}
+
+	// 移除那些不在DesiredFinalAlgorithmMap中的键
+	for (const auto& KeyName : FinalAlgorithmMap)
+	{
+		if (!DesiredFinalAlgorithmMap.Contains(KeyName.Key))
+		{
+			// 如果不在DesiredFinalAlgorithmMap中，则从FinalAlgorithmMap中移除
+			FinalAlgorithmMap.Remove(KeyName.Key);
+		}
+	}
+
+	for (const auto& KeyName : DesiredFinalAlgorithmMap)
+	{
+		// 检查FinalAlgorithmMap中是否已经存在这个键
+		if (!FinalAlgorithmMap.Contains(KeyName))
+		{
+			// 如果不存在，则添加新的键值对
+			FinalAlgorithmMap.Add(KeyName, nullptr);
+		}
+	}
+#endif // WITH_EDITOR
 }

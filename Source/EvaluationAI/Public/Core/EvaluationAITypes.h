@@ -8,6 +8,7 @@
 #include "UObject/Interface.h"
 #include "EvaluationAITypes.generated.h"
 
+class UEvaluationAlgorithm;
 class UEvaluationAIStrategy;
 class UEvaluationAIDecisionComponent;
 /**
@@ -82,53 +83,32 @@ public:
     TArray<TObjectPtr<UEvaluationAIDecisionComponent>> TeamMembers;
 };
 
+/**
+ * 定义策略
+ */
 USTRUCT(BlueprintType)
-struct FEvaluationAIConfig
+struct FEvaluationAIStrategyConfig : public FTableRowBase
 {
     GENERATED_BODY()
 
-    FEvaluationAIConfig(){}
+    FEvaluationAIStrategyConfig(){}
+    
+    // 存储旧值以便比较
+    UPROPERTY(Transient)
+    mutable TSubclassOf<UEvaluationAIStrategy> OldValue;
 
     /**
      * 策略应该是很具体的， 除非非常特殊的AI需要进行额外创建新的， 其它情况下一般通用的比如进攻、防御、支援等策略就可以了
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
-    FGameplayTag StrategyType;
-
-    /**
-     * 可选行为， 如，视具体项目， 可能有移动、防御、使用技能等（有的项目也会把这些东西都定义成技能）
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
-    TArray<FGameplayTag> AvailableActions;
-};
-
-/**
- * 策略配置数据
- */
-USTRUCT(BlueprintType)
-struct FStrategyConfigData
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly)
-    FGameplayTag StrategyType;
-    // 策略类
-    UPROPERTY(EditAnywhere, Category = "Strategy")
     TSubclassOf<UEvaluationAIStrategy> StrategyClass;
 
-    // 自定义数据
-    UPROPERTY(EditAnywhere, Category = "Strategy")
+    // 预留CustomData, 目前是为了使用TS创建StrategyClass的可能性
+    UPROPERTY(EditAnywhere)
     FName CustomData = NAME_None;
-};
-
-/**
- * 决策世界数据 - 包含做出决策所需的所有上下文信息
- */
-UCLASS(Abstract, Blueprintable, BlueprintType)
-class EVALUATIONAI_API UEvaluationWorldContext : public UObject
-{
-    GENERATED_BODY()
     
-public:
- 
+    UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadOnly, meta=(DisplayName = "评分算法", ReadOnlyKeys))
+    TMap<FName, TSubclassOf<UEvaluationAlgorithm>> FinalAlgorithmMap;
+
+    virtual void OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName) override;
 };

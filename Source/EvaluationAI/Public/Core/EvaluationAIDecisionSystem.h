@@ -65,17 +65,22 @@ class UEvaluationAIDecisionComponent;
  * - 合理设置团队规模，避免过大团队影响性能
  * - 适当调整评估参数以平衡决策质量和性能
  */
-UCLASS()
+UCLASS(Abstract)
 class EVALUATIONAI_API UEvaluationAIDecisionSystem : public UWorldSubsystem
 {
     GENERATED_BODY()
 
     inline static int32 EmptyTeamID = -1;
+
+protected:
+    UPROPERTY()
+    TArray<TObjectPtr<UEvaluationAIDecisionComponent>> RegisteredAIs;
     
+    // 团队上下文映射
+    UPROPERTY()
+    TMap<int32, TObjectPtr<UEvaluationTeamContext>> TeamContexts;
+
 public:
-    // 初始化系统
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-    
     // 清理系统
     virtual void Deinitialize() override;
     
@@ -93,20 +98,17 @@ public:
 
     const TMap<int32, TObjectPtr<UEvaluationTeamContext>>& GetTeamContexts();
 
-    const UEvaluationAIEvaluationHelper* GetEvaluationHelper() const { return EvaluationHelper; }
-
     /**
      * 同步AI思考， 适用于那些在回合一开始，就确定所有AI的决策的情况
      */
     void SyncAIThink();
     
     // 团队级决策
-    const FEvaluationAITeamDecisionResult& MakeTeamDecision(int32 InTeamID, const UEvaluationWorldContext* InWorldContext);
+    const FEvaluationAITeamDecisionResult& MakeTeamDecision(int32 InTeamID);
 
     // 个体级决策
-    FEvaluationAIDecisionResult MakeIndividualDecision(UEvaluationAIDecisionComponent* Component, const UEvaluationWorldContext* InWorldContext);
+    FEvaluationAIDecisionResult MakeIndividualDecision(UEvaluationAIDecisionComponent* Component);
 
-    
 protected:
     // 为特定团队设置上下文
     UFUNCTION(BlueprintCallable, Category = "AI|Team")
@@ -116,21 +118,28 @@ protected:
     UFUNCTION(BlueprintCallable, Category = "AI|Team")
     UEvaluationTeamContext* GetTeamContext(int32 TeamID);
 
-private:
-    UPROPERTY()
-    TArray<TObjectPtr<UEvaluationAIDecisionComponent>> RegisteredAIs;
-    
-    // 团队上下文映射
-    UPROPERTY()
-    TMap<int32, TObjectPtr<UEvaluationTeamContext>> TeamContexts;
+    // Todo: 可以
+    virtual TObjectPtr<UEvaluationAIStrategy> GetDecisionStrategy(TSubclassOf<UEvaluationAIStrategy> StrategyClass, const FName& CustomData) PURE_VIRTUAL(UEvaluationAIDecisionSystem::GetDecisionStrategy, return nullptr;);
 
-    /**
-     * 策略负责定义和生成可能的行为选项， 并且额外对行为增加权重调整系数
-     */
-    UPROPERTY()
-    TMap<FGameplayTag, TObjectPtr<UEvaluationAIStrategy>> DecisionStrategyMap;
+    // 评估算法相关
+protected:
+    virtual void StartSyncAIThink() PURE_VIRTUAL();
+    virtual void EndSyncAIThink() PURE_VIRTUAL();
+
+    // 评估所有选项
+    void EvaluateAllActions(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,
+                                    const UEvaluationAIDecisionComponent* InOwner,
+                                    TArray<FEvaluationAIDecisionResult>& OutOptions);
+
+    // 评估单个行动选项
+    void EvaluateAction(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,
+                                const UEvaluationAIDecisionComponent* InOwner,
+                                FEvaluationAIDecisionResult& OutEvaluatedOption);
+
+    // 从评估选项中选择最佳选项
+    const FEvaluationAIDecisionResult& SelectBestAction(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,
+                                                                UEvaluationAIDecisionComponent* InOwner,
+                                                                const TArray<FEvaluationAIDecisionResult>& Options);
     
-    // 评估助手实例
-    UPROPERTY()
-    TObjectPtr<UEvaluationAIEvaluationHelper> EvaluationHelper;
+    virtual TObjectPtr<UEvaluationAlgorithm> GetAlgorithm(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass) PURE_VIRTUAL(UEvaluationAIDecisionSystem::GetAlgorithm, return nullptr;);
 }; 

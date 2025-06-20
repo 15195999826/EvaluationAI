@@ -11,7 +11,6 @@
 class UEvaluationAIStrategy;
 class UEvaluationTeamContext;
 class UEvaluationAIEvaluationHelper;
-class UEvaluationAIStrategyFactory;
 
 /**
  * EvaluationAI插件全局设置
@@ -26,22 +25,6 @@ class EVALUATIONAI_API UEvaluationAISettings : public UDeveloperSettings
 
 public:
     virtual FName GetCategoryName() const override;
-    
-    // 默认的评估助手类
-    UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Evaluation", meta=(DisplayName = "评估函数辅助类"))
-    TSubclassOf<UEvaluationAIEvaluationHelper> DefaultEvaluationHelperClass;
-
-    // 策略工厂类
-    UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Strategy", meta=(DisplayName = "策略工厂类"))
-    TSubclassOf<UEvaluationAIStrategyFactory> StrategyFactoryClass;
-
-    /**
-     * 策略配置映射
-     * Key: 策略类型标签
-     * Value: 策略配置数据
-     */
-    UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Strategy", meta=(DisplayName = "策略配置"))
-    TArray<FStrategyConfigData> StrategyConfigs;
     
     // 可用的AI Action, 使用GameplayTag
     UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Evaluation", meta=(DisplayName = "可用的Actions"))

@@ -1,48 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Core/EvaluationAIDecisionSystem.h"
+
+#include "EvaluationAI.h"
 #include "Core/EvaluationAIDecisionComponent.h"
-#include "Core/EvaluationAIEvaluationHelper.h"
 #include "Core/EvaluationAISettings.h"
 #include "Core/EvaluationAIStrategy.h"
-#include "Core/EvaluationAIStrategyFactory.h"
-#include "DefaultClass/DefaultAIEvaluationHelper.h"
-#include "DefaultClass/DefaultAIStrategyFactory.h"
-
-void UEvaluationAIDecisionSystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-    Super::Initialize(Collection);
-    auto Settings = GetDefault<UEvaluationAISettings>();
-    
-    // 创建评估助手
-    auto HelperClass = Settings->DefaultEvaluationHelperClass;
-    
-    if (HelperClass == nullptr)
-    {
-        HelperClass = UDefaultAIEvaluationHelper::StaticClass();
-    }
-    
-    EvaluationHelper = NewObject<UEvaluationAIEvaluationHelper>(this, HelperClass);
-    EvaluationHelper->InitHelper();
-    // 创建策略工厂
-    auto FactoryClass = Settings->StrategyFactoryClass;
-    
-    if (!FactoryClass)
-    {
-        FactoryClass = UDefaultAIStrategyFactory::StaticClass();
-    }
-
-    // 使用工厂类创建策略对象
-    auto StrategyFactory = NewObject<UEvaluationAIStrategyFactory>(this, FactoryClass);
-    for (const auto& StrategyConfig : Settings->StrategyConfigs)
-    {
-        auto NewStrategy = StrategyFactory->CreateStrategy(this, StrategyConfig);
-        if (NewStrategy)
-        {
-            DecisionStrategyMap.Add(NewStrategy->StrategyType, NewStrategy);
-        }
-    }
-}
+#include "Core/EvaluationAlgorithm.h"
 
 void UEvaluationAIDecisionSystem::Deinitialize()
 {
@@ -114,15 +78,16 @@ const TMap<int32, TObjectPtr<UEvaluationTeamContext>>& UEvaluationAIDecisionSyst
 
 void UEvaluationAIDecisionSystem::SyncAIThink()
 {
-    auto WorldContext = EvaluationHelper->MakeWorldContext();
 
+    StartSyncAIThink();
     TMap<int32, FEvaluationAITeamDecisionResult> TeamDecisions;
+    
     // 先进行队伍决策
     for (auto& TeamPair : TeamContexts)
     {
         auto TeamID = TeamPair.Key;
         // 进行团队决策
-        TeamDecisions.Add(TeamID, MakeTeamDecision(TeamID, WorldContext));
+        TeamDecisions.Add(TeamID, MakeTeamDecision(TeamID));
     }
 
     // 再进行个人决策
@@ -132,14 +97,15 @@ void UEvaluationAIDecisionSystem::SyncAIThink()
         // auto TeamID = AI->GetEvaluationTeamID();
    
         // 进行个人决策
-        FEvaluationAIDecisionResult Decision = MakeIndividualDecision(AI, WorldContext);
+        FEvaluationAIDecisionResult Decision = MakeIndividualDecision(AI);
         // 保存个人最终决策到组件中， 留给项目本身决定如何执行
         AI->SetDecision(Decision);
     }
+
+    EndSyncAIThink();
 }
 
-const FEvaluationAITeamDecisionResult& UEvaluationAIDecisionSystem::MakeTeamDecision(int32 InTeamID,
-                                                                                     const UEvaluationWorldContext* InWorldContext)
+const FEvaluationAITeamDecisionResult& UEvaluationAIDecisionSystem::MakeTeamDecision(int32 InTeamID)
 {
     // FEvaluationAITeamDecisionResult Ret;
 
@@ -149,25 +115,45 @@ const FEvaluationAITeamDecisionResult& UEvaluationAIDecisionSystem::MakeTeamDeci
     return FEvaluationAITeamDecisionResult::Invalid;
 }
 
-FEvaluationAIDecisionResult UEvaluationAIDecisionSystem::MakeIndividualDecision(
-    UEvaluationAIDecisionComponent* Component, const UEvaluationWorldContext* InWorldContext)
+FEvaluationAIDecisionResult UEvaluationAIDecisionSystem::MakeIndividualDecision(UEvaluationAIDecisionComponent* Component)
 {
-    auto StrategyType = Component->GetAIConfig().StrategyType;
-    check(DecisionStrategyMap.Contains(StrategyType));
-    // 1. 生成行动选项
-    TArray<FEvaluationAIDecisionResult> Options = DecisionStrategyMap[StrategyType]->GenerateOptionsForAI(Component, InWorldContext);
-    // 2. 评估所有选项
+    auto StrategyConfig = Component->GetAIStrategyConfig();
+    auto DecisionStrategy = GetDecisionStrategy(StrategyConfig->StrategyClass, StrategyConfig->CustomData);
+
+    if (!DecisionStrategy)
+    {
+        UE_LOG(LogEvaluationAI, Error, TEXT("[MakeIndividualDecision]没有找到对应的决策策略实例: %s"), StrategyConfig->StrategyClass == nullptr? TEXT("nullptr") : *StrategyConfig->StrategyClass->GetName());
+        return FEvaluationAIDecisionResult::Invalid;
+    }
+    
+    // 1. 根据世界状态等数据， 运行一系列状态判断，获取当前使用的评估算法类
+    auto EvaluationAlgorithmName = DecisionStrategy->RunStrategy(Component);
+    UE_LOG(LogEvaluationAI, Verbose, TEXT("[角色%s]当前使用的评估算法: %s"), *Component->GetOwner()->GetName(), *EvaluationAlgorithmName.ToString());
+    TSubclassOf<UEvaluationAlgorithm> EvaluationAlgorithmClass;
+    if (StrategyConfig->FinalAlgorithmMap.Contains(EvaluationAlgorithmName))
+    {
+        EvaluationAlgorithmClass = StrategyConfig->FinalAlgorithmMap[EvaluationAlgorithmName];
+    }
+    else
+    {
+        UE_LOG(LogEvaluationAI, Error, TEXT("[MakeIndividualDecision]没有找到对应的评估算法类: %s"), *EvaluationAlgorithmName.ToString());
+        return FEvaluationAIDecisionResult::Invalid;
+    }
+
+    // 2. 生成行动选项
+    TArray<FEvaluationAIDecisionResult> Options = DecisionStrategy->GenerateOptionsForAI(Component);
+    
     // 如果没有选项，返回空决策
     if (Options.Num() == 0)
     {
         return FEvaluationAIDecisionResult::Invalid;
     }
     
-    // 2. 评估所有选项
-    EvaluationHelper->EvaluateAllActions(Component, InWorldContext, Options);
+    // 3. 评估所有选项
+    EvaluateAllActions(EvaluationAlgorithmClass, Component, Options);
     
-    // 3. 选择最佳选项
-    const auto& BestAction = EvaluationHelper->SelectBestAction(Component, InWorldContext, Options);
+    // 4. 选择最佳选项
+    const auto& BestAction = SelectBestAction(EvaluationAlgorithmClass, Component, Options);
     return BestAction;
 }
 
@@ -184,4 +170,23 @@ void UEvaluationAIDecisionSystem::SetTeamContext(int32 TeamID, UEvaluationTeamCo
 UEvaluationTeamContext* UEvaluationAIDecisionSystem::GetTeamContext(int32 TeamID)
 {
     return TeamContexts.FindRef(TeamID);
+}
+
+void UEvaluationAIDecisionSystem::EvaluateAllActions(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,
+    const UEvaluationAIDecisionComponent* InOwner, TArray<FEvaluationAIDecisionResult>& OutOptions)
+{
+    GetAlgorithm(AlgorithmClass)->EvaluateAllActions(InOwner, OutOptions);
+}
+
+void UEvaluationAIDecisionSystem::EvaluateAction(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,
+    const UEvaluationAIDecisionComponent* InOwner, FEvaluationAIDecisionResult& OutEvaluatedOption)
+{
+    GetAlgorithm(AlgorithmClass)->EvaluateAction(InOwner, OutEvaluatedOption);
+}
+
+const FEvaluationAIDecisionResult& UEvaluationAIDecisionSystem::SelectBestAction(
+    TSubclassOf<UEvaluationAlgorithm> AlgorithmClass, UEvaluationAIDecisionComponent* InOwner,
+    const TArray<FEvaluationAIDecisionResult>& Options)
+{
+    return GetAlgorithm(AlgorithmClass)->SelectBestAction(InOwner, Options);
 }
