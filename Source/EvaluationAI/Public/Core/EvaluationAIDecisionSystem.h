@@ -98,10 +98,14 @@ public:
 
     const TMap<int32, TObjectPtr<UEvaluationTeamContext>>& GetTeamContexts();
 
+ 
     /**
      * 同步AI思考， 适用于那些在回合一开始，就确定所有AI的决策的情况
      */
     void SyncAIThink();
+
+    virtual void StartSyncAIThink() PURE_VIRTUAL();
+    virtual void EndSyncAIThink() PURE_VIRTUAL();
     
     // 团队级决策
     const FEvaluationAITeamDecisionResult& MakeTeamDecision(int32 InTeamID);
@@ -123,8 +127,6 @@ protected:
 
     // 评估算法相关
 protected:
-    virtual void StartSyncAIThink() PURE_VIRTUAL();
-    virtual void EndSyncAIThink() PURE_VIRTUAL();
 
     // 评估所有选项
     void EvaluateAllActions(TSubclassOf<UEvaluationAlgorithm> AlgorithmClass,

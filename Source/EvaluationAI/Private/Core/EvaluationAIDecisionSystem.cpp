@@ -32,15 +32,15 @@ void UEvaluationAIDecisionSystem::RegisterAI(UEvaluationAIDecisionComponent* Com
     // 添加到新团队
     if (!TeamContexts.Contains(TeamID))
     {
-        auto TeamContextClass = GetDefault<UEvaluationAISettings>()->TeamContextClass;
-        auto NewTeamContext = NewObject<UEvaluationTeamContext>(this, TeamContextClass);
-        TeamContexts.Add(TeamID, NewTeamContext);
+        // auto TeamContextClass = GetDefault<UEvaluationAISettings>()->TeamContextClass;
+        // auto NewTeamContext = NewObject<UEvaluationTeamContext>(this, TeamContextClass);
+        // TeamContexts.Add(TeamID, NewTeamContext);
     }
     
-    TeamContexts[TeamID]->TeamMembers.Add(Component);
+    // TeamContexts[TeamID]->TeamMembers.Add(Component);
     
     // 更新组件的团队ID
-    Component->SetEvaluationTeamID(TeamID);
+    // Component->SetEvaluationTeamID(TeamID);
 }
 
 void UEvaluationAIDecisionSystem::UnregisterAI(UEvaluationAIDecisionComponent* Component)
@@ -78,7 +78,6 @@ const TMap<int32, TObjectPtr<UEvaluationTeamContext>>& UEvaluationAIDecisionSyst
 
 void UEvaluationAIDecisionSystem::SyncAIThink()
 {
-
     StartSyncAIThink();
     TMap<int32, FEvaluationAITeamDecisionResult> TeamDecisions;
     
