@@ -17,6 +17,8 @@ class EVALUATIONAI_API UEvaluationAlgorithm : public UObject
 	GENERATED_BODY()
 
 public:
+	virtual UWorld* GetWorld() const override;
+	
 	virtual void EvaluateAllActions(
 		const UEvaluationAIDecisionComponent* InOwner,
 		TArray<FEvaluationAIDecisionResult>& OutOptions) PURE_VIRTUAL(UEvaluationAlgorithm::EvaluateAllActions,);

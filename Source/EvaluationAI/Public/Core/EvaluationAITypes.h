@@ -41,6 +41,9 @@ struct EVALUATIONAI_API FEvaluationAIDecisionResult
     UPROPERTY()
     TMap<FName, FIntPoint> IntPointDataMap;
     
+    UPROPERTY()
+    TMap<FName, FVector> VectorDataMap;
+    
     // Todo: 增加一条得分调整系数， 用于控制AI选择结果的倾向
     
     // 得分

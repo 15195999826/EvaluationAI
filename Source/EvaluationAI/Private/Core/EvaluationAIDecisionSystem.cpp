@@ -140,7 +140,7 @@ FEvaluationAIDecisionResult UEvaluationAIDecisionSystem::MakeIndividualDecision(
     }
 
     // 2. 生成行动选项
-    TArray<FEvaluationAIDecisionResult> Options = DecisionStrategy->GenerateOptionsForAI(Component);
+    TArray<FEvaluationAIDecisionResult> Options = DecisionStrategy->GenerateOptionsForAI(Component, EvaluationAlgorithmName);
     
     // 如果没有选项，返回空决策
     if (Options.Num() == 0)

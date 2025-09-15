@@ -61,10 +61,11 @@ public:
     
     /**
      * 负责生成一个AI所有可能的行动选项
-     * @param InOwner 
+     * @param InOwner
+     * @param InAlgorithmName 
      * @return 
      */
-    virtual TArray<FEvaluationAIDecisionResult> GenerateOptionsForAI(const UEvaluationAIDecisionComponent* InOwner)
+    virtual TArray<FEvaluationAIDecisionResult> GenerateOptionsForAI(const UEvaluationAIDecisionComponent* InOwner, const FName& InAlgorithmName)
     PURE_VIRTUAL(UEvaluationAIStrategy::GenerateOptionsForAI, return TArray<FEvaluationAIDecisionResult>(););
    
 //     // 初始化策略
